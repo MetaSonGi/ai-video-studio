@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>AI 영상 스튜디오</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  body {
+    font-family: system-ui, -apple-system, "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
+    background: radial-gradient(circle at 50% 0%, #2b2b5e, #12122b 70%);
+    color:#fff; min-height:100vh; padding:16px 12px 40px;
+  }
+  #wrap { width:100%; max-width:640px; margin:0 auto; }
+  header { text-align:center; margin:8px 0 18px; }
+  header h1 { font-size:26px; letter-spacing:-0.5px; }
+  header p { font-size:13px; opacity:.65; margin-top:4px; }
+  .card {
+    background:rgba(255,255,255,.07); border:1px solid rgba(255,255,255,.13);
+    border-radius:16px; padding:16px; margin-bottom:14px;
+  }
+  .card h2 { font-size:16px; margin-bottom:10px; }
+  .card h2 .step { display:inline-block; background:#7b5cff; border-radius:8px; font-size:12px; padding:2px 8px; margin-right:6px; vertical-align:1px; }
+  .note { font-size:12px; opacity:.65; line-height:1.6; margin-top:8px; }
+  input[type=password], input[type=text], textarea, select {
+    width:100%; background:rgba(0,0,0,.35); border:1px solid rgba(255,255,255,.2);
+    color:#fff; border-radius:10px; padding:10px 12px; font-size:14px; font-family:inherit;
+  }
+  textarea { resize:vertical; min-height:76px; }
+  input:focus, textarea:focus { outline:2px solid #7b5cff; border-color:#7b5cff; }
+  .row { display:flex; gap:8px; margin-top:10px; }
+  .row > * { flex:1; }
+  #keyList { margin-top:10px; display:flex; flex-direction:column; gap:6px; }
+  .keyrow { display:flex; align-items:center; gap:8px; background:#1c1c2e; border-radius:8px; padding:8px 10px; }
+  .keyrow input[type=radio] { width:auto; margin:0; accent-color:#7b5cff; }
+  .keylabel { flex:1; font-size:14px; }
+  button.small { padding:6px 10px; font-size:12px; flex:0 0 auto; }
+  button {
+    font-family:inherit; font-size:14px; font-weight:700; border:0; border-radius:10px;
+    padding:11px 14px; cursor:pointer; color:#fff; background:#3d3d6e;
+  }
+  button:active { transform:translateY(1px); }
+  button.primary { background:linear-gradient(180deg,#8b6cff,#6a3df0); box-shadow:0 4px 0 #4a25b8; font-size:16px; padding:13px; }
+  button.primary:active { box-shadow:0 2px 0 #4a25b8; }
+  button.danger { background:#a33; }
+  button.ghost { background:transparent; border:1px solid rgba(255,255,255,.25); font-weight:400; font-size:12px; padding:8px 10px; }
+  button:disabled { opacity:.45; cursor:not-allowed; transform:none; }
+  .seg { display:flex; gap:6px; margin-top:6px; }
+  .seg button { flex:1; padding:9px 4px; font-size:13px; background:rgba(0,0,0,.3); border:1px solid rgba(255,255,255,.15); }
+  .seg button.on { background:#7b5cff; border-color:#7b5cff; }
+  label.lbl { display:block; font-size:12px; opacity:.7; margin:10px 0 4px; }
+  #keyStatus { font-size:13px; margin-top:8px; }
+  #keyStatus.ok { color:#80ed99; }
+  #keyStatus.no { color:#ffb3b3; }
+  #examples { display:flex; gap:8px; margin-top:8px; flex-wrap:wrap; }
+  #examples button { font-size:12px; font-weight:400; padding:7px 10px; background:rgba(123,92,255,.18); border:1px solid rgba(123,92,255,.5); }
+  #progressCard, #resultCard { display:none; }
+  #progressCard.show, #resultCard.show { display:block; }
+  .steps { display:flex; gap:6px; margin:8px 0 12px; }
+  .steps .st { flex:1; text-align:center; font-size:12px; padding:8px 4px; border-radius:8px; background:rgba(0,0,0,.3); opacity:.5; }
+  .steps .st.on { opacity:1; background:rgba(123,92,255,.35); border:1px solid #7b5cff; }
+  .steps .st.done { opacity:1; background:rgba(128,237,153,.15); border:1px solid #80ed99; }
+  #elapsed { font-size:13px; opacity:.8; margin-top:6px; }
+  #pbarWrap { height:10px; background:rgba(0,0,0,.4); border-radius:6px; margin-top:10px; overflow:hidden; }
+  #pbar { height:100%; width:0%; background:linear-gradient(90deg,#7b5cff,#b48cff); border-radius:6px; transition:width .5s; }
+  #pbar.indet { width:30% !important; animation:slide 1.2s infinite ease-in-out; }
+  @keyframes slide { 0%{margin-left:-30%} 100%{margin-left:100%} }
+  video { width:100%; border-radius:12px; background:#000; margin-top:8px; }
+  .hist-item { background:rgba(0,0,0,.3); border:1px solid rgba(255,255,255,.12); border-radius:10px; padding:10px 12px; margin-top:8px; }
+  .hist-item .hp { font-size:13px; line-height:1.5; }
+  .hist-item .hm { font-size:11px; opacity:.55; margin-top:4px; }
+  .hist-item .ha { display:flex; gap:6px; margin-top:8px; }
+  .hist-item .ha button { font-size:12px; padding:7px 10px; font-weight:400; }
+  #toast {
+    position:fixed; left:50%; bottom:26px; transform:translateX(-50%); z-index:50;
+    background:#22223f; border:1px solid #7b5cff; color:#fff; font-size:13px;
+    padding:11px 18px; border-radius:12px; display:none; max-width:88vw; text-align:center;
+    box-shadow:0 6px 24px rgba(0,0,0,.5);
+  }
+  #emptyHist { font-size:13px; opacity:.55; text-align:center; padding:14px 0 6px; }
+</style>
+</head>
+<body>
+<div id="wrap">
+  <header>
+    <h1>🎬 AI 영상 스튜디오</h1>
+    <p>Agnes AI로 텍스트를 영상으로 — 브라우저에서 직접 생성</p>
+  </header>
+
+  <div class="card">
+    <h2><span class="step">1</span>API 키 설정</h2>
+    <input type="text" id="keyName" placeholder="키 이름 (예: 내 키 1)" autocomplete="off">
+    <input type="password" id="apiKey" placeholder="Agnes AI API 키 입력" autocomplete="off">
+    <div class="row">
+      <button id="addKey">키 추가</button>
+    </div>
+    <div id="keyList"></div>
+    <div id="keyStatus" class="no">API 키가 등록되어 있지 않습니다.</div>
+    <p class="note">키는 이 브라우저(localStorage)에만 저장되며, 영상 생성 요청 시 Agnes AI API로 직접 전송됩니다. 이 페이지의 서버는 존재하지 않습니다. 여러 키를 등록하고 사용할 키를 선택할 수 있습니다.</p>
+  </div>
+
+  <div class="card">
+    <h2><span class="step">2</span>영상 만들기</h2>
+    <textarea id="prompt" placeholder="만들고 싶은 영상을 설명해주세요. 예) 파도가 치는 해변 위 드론샷, 일몰"></textarea>
+    <div id="examples">
+      <button data-ex="판교 테크노밸리 야경 드론샷, 네온 불빛">예시: 판교 야경</button>
+      <button data-ex="벚꽃 흩날리는 경복궁 봄 풍경, 슬로우모션">예시: 경복궁 봄</button>
+    </div>
+    <label class="lbl">화면 비율</label>
+    <div class="seg" id="aspectSeg">
+      <button data-v="16:9">16:9</button>
+      <button data-v="9:16" class="on">9:16</button>
+      <button data-v="1:1">1:1</button>
+    </div>
+    <label class="lbl">길이</label>
+    <div class="seg" id="secSeg">
+      <button data-v="5">5초</button>
+      <button data-v="10" class="on">10초</button>
+    </div>
+    <label class="lbl">모델</label>
+    <input type="text" id="model" value="agnes-video-2.5-flash">
+    <div class="row" style="margin-top:14px;">
+      <button id="genBtn" class="primary">🎥 영상 생성</button>
+    </div>
+  </div>
+
+  <div class="card" id="progressCard">
+    <h2><span class="step">3</span>생성 중</h2>
+    <div class="steps">
+      <div class="st" id="st1">제출</div>
+      <div class="st" id="st2">AI 생성 중</div>
+      <div class="st" id="st3">완료</div>
+    </div>
+    <div id="elapsed">경과 00:00</div>
+    <div id="pbarWrap"><div id="pbar"></div></div>
+    <div class="row" style="margin-top:12px;">
+      <button id="cancelBtn" class="danger">취소</button>
+    </div>
+  </div>
+
+  <div class="card" id="resultCard">
+    <h2><span class="step">4</span>완성된 영상</h2>
+    <video id="videoEl" controls playsinline></video>
+    <div class="row" style="margin-top:10px;">
+      <button id="dlBtn" class="primary">⬇ MP4 다운로드</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2><span class="step">5</span>히스토리</h2>
+    <div id="histList"><div id="emptyHist">아직 생성한 영상이 없습니다.</div></div>
+    <p class="note">영상 URL은 시간이 지나면 만료될 수 있습니다. 필요한 영상은 MP4로 다운로드해 보관하세요.</p>
+  </div>
+</div>
+<div id="toast"></div>
+
+<script>
+"use strict";
+/* ================= 순수 함수 (node 테스트 가능) ================= */
+var API_BASE = "https://apihub.agnes-ai.com";
+var TASK_ID_KEYS = ["id", "task_id", "job_id", "request_id"];
+var VIDEO_URL_KEYS = ["video_url", "url", "download_url", "output_url"];
+var DONE_STATES = ["completed", "succeeded", "success", "done", "finish", "finished"];
+var FAIL_STATES = ["failed", "error", "cancelled", "canceled"];
+
+function isObj(v) { return v !== null && typeof v === "object" && !Array.isArray(v); }
+
+// 작업 ID 추출: 최상위 → data 객체 순으로 탐색
+function extractTaskId(json) {
+  if (!isObj(json)) return null;
+  var cands = [json];
+  if (isObj(json.data)) cands.push(json.data);
+  for (var c = 0; c < cands.length; c++) {
+    for (var i = 0; i < TASK_ID_KEYS.length; i++) {
+      var v = cands[c][TASK_ID_KEYS[i]];
+      if (typeof v === "string" && v.length > 0) return v;
+    }
+  }
+  return null;
+}
+
+// 비디오 URL 추출: 키들을 재귀 탐색, http로 시작하는 문자열 수집 후 우선순위 선택
+function extractVideoUrl(json) {
+  var found = [];
+  function walk(node) {
+    if (Array.isArray(node)) { for (var i = 0; i < node.length; i++) walk(node[i]); return; }
+    if (!isObj(node)) return;
+    for (var k in node) {
+      var v = node[k];
+      if (VIDEO_URL_KEYS.indexOf(k) >= 0 && typeof v === "string" && v.indexOf("http") === 0) {
+        found.push(v);
+      } else {
+        walk(v);
+      }
+    }
+  }
+  walk(json);
+  if (!found.length) return null;
+  for (var j = 0; j < found.length; j++) {
+    if (/\.mp4(\?|$)/i.test(found[j])) return found[j];
+  }
+  for (var m = 0; m < found.length; m++) {
+    if (/video/i.test(found[m])) return found[m];
+  }
+  return found[0];
+}
+
+// 상태 판정: {state: 'done'|'failed'|'running', progress: number|null}
+function classifyStatus(json) {
+  var st = null, prog = null;
+  function findStatus(node) {
+    if (st !== null) return;
+    if (Array.isArray(node)) { for (var i = 0; i < node.length; i++) findStatus(node[i]); return; }
+    if (!isObj(node)) return;
+    if (typeof node.status === "string") st = node.status;
+    else if (typeof node.state === "string") st = node.state;
+    else for (var k in node) findStatus(node[k]);
+  }
+  function findProg(node) {
+    if (prog !== null) return;
+    if (Array.isArray(node)) { for (var i = 0; i < node.length; i++) findProg(node[i]); return; }
+    if (!isObj(node)) return;
+    var keys = ["progress", "percent", "percent_complete", "percentage"];
+    for (var i = 0; i < keys.length; i++) {
+      if (typeof node[keys[i]] === "number") { prog = node[keys[i]]; return; }
+    }
+    for (var k in node) findProg(node[k]);
+  }
+  findStatus(json); findProg(json);
+  var s = (st || "").toLowerCase();
+  var state = "running";
+  if (DONE_STATES.indexOf(s) >= 0) state = "done";
+  else if (FAIL_STATES.indexOf(s) >= 0) state = "failed";
+  return { state: state, progress: prog };
+}
+
+function httpErrorMessage(status) {
+  if (status === 401 || status === 403) return "API 키가 유효하지 않습니다. 키를 다시 확인해주세요.";
+  if (status === 429) return "무료 한도 초과 — 잠시 후 다시 시도해주세요.";
+  return "요청 실패 (HTTP " + status + ")";
+}
+
+function networkErrorMessage() {
+  return "네트워크 오류: 인터넷 연결을 확인하거나, 광고 차단 확장 프로그램이 API 호출을 막고 있는지 확인해주세요.";
+}
+
+/* ================= 앱 (브라우저 전용) ================= */
+if (typeof window !== "undefined") {
+  var LS_KEY = "aivs_api_key";       // 구버전 단일 키 (마이그레이션용)
+  var LS_KEYS = "aivs_api_keys";     // [{id,name,key}]
+  var LS_ACTIVE = "aivs_active_key"; // 선택된 키 id
+  var LS_HIST = "aivs_history";
+  var POLL_MS = 15000;
+  var MAX_MS = 15 * 60 * 1000;
+
+  var els = {};
+  ["keyName","apiKey","addKey","keyList","keyStatus","prompt","genBtn","cancelBtn","progressCard",
+   "resultCard","videoEl","dlBtn","elapsed","pbar","st1","st2","st3","histList","model",
+   "aspectSeg","secSeg"].forEach(function(id){ els[id] = document.getElementById(id); });
+
+  var job = { polling:false, timerId:null, tickId:null, startTime:0, taskId:null, model:"", videoUrl:"" };
+  var toastTimer = null;
+
+  function toast(msg) {
+    var t = document.getElementById("toast");
+    t.textContent = msg; t.style.display = "block";
+    if (toastTimer) clearTimeout(toastTimer);
+    toastTimer = setTimeout(function(){ t.style.display = "none"; }, 3200);
+  }
+
+  function getKeys() {
+    try {
+      var raw = localStorage.getItem(LS_KEYS);
+      if (raw) { var a = JSON.parse(raw); if (Array.isArray(a)) return a; }
+    } catch(e){}
+    // 구버전 단일 키 마이그레이션
+    try {
+      var old = localStorage.getItem(LS_KEY);
+      if (old) {
+        var arr = [{id:"k"+Date.now(), name:"기본 키", key:old}];
+        localStorage.setItem(LS_KEYS, JSON.stringify(arr));
+        localStorage.setItem(LS_ACTIVE, arr[0].id);
+        localStorage.removeItem(LS_KEY);
+        return arr;
+      }
+    } catch(e){}
+    return [];
+  }
+  function saveKeys(arr) { try { localStorage.setItem(LS_KEYS, JSON.stringify(arr)); } catch(e){ toast("저장 실패: 브라우저 저장소를 사용할 수 없습니다."); } }
+  function getActiveId() { try { return localStorage.getItem(LS_ACTIVE) || ""; } catch(e){ return ""; } }
+  function getActiveKey() {
+    var keys = getKeys(), aid = getActiveId();
+    for (var i=0;i<keys.length;i++) if (keys[i].id === aid) return keys[i];
+    return keys.length ? keys[0] : null;
+  }
+  function maskKey(k) {
+    if (!k || k.length <= 8) return "****";
+    return k.slice(0,4) + "****" + k.slice(-4);
+  }
+
+  function refreshKeyUI() {
+    var keys = getKeys(), aid = getActiveId();
+    els.keyList.innerHTML = "";
+    keys.forEach(function(k){
+      var row = document.createElement("div");
+      row.className = "keyrow";
+      var radio = document.createElement("input");
+      radio.type = "radio"; radio.name = "activeKey"; radio.checked = (k.id === aid);
+      radio.title = "사용할 키 선택";
+      radio.addEventListener("change", function(){
+        try { localStorage.setItem(LS_ACTIVE, k.id); } catch(e){}
+        refreshKeyUI(); toast("사용할 키를 '" + k.name + "'(으)로 변경했습니다.");
+      });
+      var label = document.createElement("span");
+      label.className = "keylabel";
+      label.textContent = (k.name || "키") + " (" + maskKey(k.key) + ")";
+      var del = document.createElement("button");
+      del.className = "danger small"; del.textContent = "삭제";
+      del.addEventListener("click", function(){
+        var nk = getKeys().filter(function(x){ return x.id !== k.id; });
+        saveKeys(nk);
+        if (getActiveId() === k.id) {
+          try {
+            if (nk.length) localStorage.setItem(LS_ACTIVE, nk[0].id);
+            else localStorage.removeItem(LS_ACTIVE);
+          } catch(e){}
+        }
+        refreshKeyUI(); toast("API 키를 삭제했습니다.");
+      });
+      row.appendChild(radio); row.appendChild(label); row.appendChild(del);
+      els.keyList.appendChild(row);
+    });
+    if (keys.length) {
+      els.keyStatus.textContent = keys.length + "개의 키가 등록되어 있습니다. 사용할 키를 선택하세요.";
+      els.keyStatus.className = "ok";
+    } else {
+      els.keyStatus.textContent = "API 키가 등록되어 있지 않습니다. 키를 먼저 등록해주세요.";
+      els.keyStatus.className = "no";
+    }
+  }
+
+  els.addKey.addEventListener("click", function(){
+    var v = els.apiKey.value.trim();
+    if (!v) { toast("API 키를 입력해주세요."); return; }
+    var keys = getKeys();
+    var name = els.keyName.value.trim() || ("키 " + (keys.length + 1));
+    var id = "k" + Date.now();
+    keys.push({id:id, name:name, key:v});
+    saveKeys(keys);
+    try { localStorage.setItem(LS_ACTIVE, id); } catch(e){}
+    els.apiKey.value = ""; els.keyName.value = "";
+    refreshKeyUI(); toast("API 키 '" + name + "'을(를) 추가했습니다.");
+  });
+
+  function segVal(segEl) {
+    var on = segEl.querySelector(".on");
+    return on ? on.getAttribute("data-v") : null;
+  }
+  function bindSeg(segEl) {
+    segEl.addEventListener("click", function(e){
+      var b = e.target.closest("button"); if (!b) return;
+      segEl.querySelectorAll("button").forEach(function(x){ x.classList.remove("on"); });
+      b.classList.add("on");
+    });
+  }
+  bindSeg(els.aspectSeg); bindSeg(els.secSeg);
+
+  document.querySelectorAll("#examples button").forEach(function(b){
+    b.addEventListener("click", function(){
+      els.prompt.value = b.getAttribute("data-ex");
+    });
+  });
+
+  function setStep(n) { // 1:제출 2:생성중 3:완료
+    [["st1",1],["st2",2],["st3",3]].forEach(function(p){
+      var el = els[p[0]], i = p[1];
+      el.classList.remove("on","done");
+      if (i < n) el.classList.add("done");
+      else if (i === n) el.classList.add("on");
+    });
+  }
+  function fmtElapsed(ms) {
+    var s = Math.floor(ms/1000);
+    var m = Math.floor(s/60); s = s%60;
+    return "경과 " + (m<10?"0":"") + m + ":" + (s<10?"0":"") + s;
+  }
+  function showProgress(show) {
+    els.progressCard.classList.toggle("show", !!show);
+    if (show) els.progressCard.scrollIntoView({behavior:"smooth", block:"nearest"});
+  }
+  function setBar(pct) {
+    if (pct === null || pct === undefined) {
+      els.pbar.classList.add("indet");
+    } else {
+      els.pbar.classList.remove("indet");
+      els.pbar.style.width = Math.max(0, Math.min(100, pct)) + "%";
+    }
+  }
+
+  async function apiFetch(path, opts) {
+    var ak = getActiveKey();
+    var key = ak ? ak.key : "";
+    opts = opts || {};
+    opts.headers = opts.headers || {};
+    opts.headers["Authorization"] = "Bearer " + key;
+    var res;
+    try {
+      res = await fetch(API_BASE + path, opts);
+    } catch(e) {
+      throw new Error(networkErrorMessage());
+    }
+    if (!res.ok) throw new Error(httpErrorMessage(res.status));
+    return res.json();
+  }
+
+  els.genBtn.addEventListener("click", async function(){
+    if (job.polling) { toast("이미 생성 중입니다. 취소 후 다시 시도해주세요."); return; }
+    var ak = getActiveKey();
+    if (!ak) { toast("API 키가 없습니다. 먼저 API 키를 등록하고 선택해주세요."); return; }
+    var prompt = els.prompt.value.trim();
+    if (!prompt) { toast("프롬프트를 입력해주세요."); return; }
+    var model = els.model.value.trim() || "agnes-video-2.5-flash";
+    var aspect = segVal(els.aspectSeg) || "9:16";
+    var seconds = segVal(els.secSeg) || "10";
+
+    els.resultCard.classList.remove("show");
+    showProgress(true); setStep(1); setBar(null);
+    job.startTime = Date.now();
+    els.elapsed.textContent = fmtElapsed(0);
+    job.tickId = setInterval(function(){
+      els.elapsed.textContent = fmtElapsed(Date.now() - job.startTime);
+      if (Date.now() - job.startTime > MAX_MS) cancelJob("시간 초과 (15분) — 작업을 취소했습니다.");
+    }, 1000);
+
+    var body = { model: model, mode: "text", prompt: prompt, seconds: seconds, size: "720P", aspect_ratio: aspect };
+    var data;
+    try {
+      data = await apiFetch("/v1/videos", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body)
+      });
+    } catch(e) {
+      stopTimers(); showProgress(false); toast(e.message); return;
+    }
+    var taskId = extractTaskId(data);
+    if (!taskId) { stopTimers(); showProgress(false); toast("작업 ID를 받지 못했습니다. 잠시 후 다시 시도해주세요."); return; }
+
+    job.taskId = taskId; job.model = model; job.polling = true;
+    setStep(2);
+    pollOnce();
+    job.timerId = setInterval(pollOnce, POLL_MS);
+
+    async function pollOnce() {
+      if (!job.polling) return;
+      var info;
+      try {
+        info = await apiFetch("/agnesapi?video_id=" + encodeURIComponent(job.taskId) +
+                              "&model_name=" + encodeURIComponent(job.model));
+      } catch(e) {
+        // 폴링 중 일시 오류는 다음 틱에 재시도 (단, 인증/한도 오류는 중단)
+        if (/API 키|무료 한도/.test(e.message)) { cancelJob(e.message); }
+        return;
+      }
+      var cls = classifyStatus(info);
+      if (cls.progress !== null) setBar(cls.progress);
+      if (cls.state === "done") {
+        var vurl = extractVideoUrl(info);
+        finishJob(vurl, prompt, aspect, seconds, model);
+      } else if (cls.state === "failed") {
+        cancelJob("영상 생성 실패 — 다시 시도해주세요.");
+      }
+    }
+  });
+
+  function finishJob(vurl, prompt, aspect, seconds, model) {
+    stopTimers(); job.polling = false;
+    if (!vurl) { showProgress(false); toast("완료됐지만 영상 URL을 찾지 못했습니다."); return; }
+    job.videoUrl = vurl;
+    setStep(3); setBar(100);
+    setTimeout(function(){ showProgress(false); }, 800);
+    els.videoEl.src = vurl;
+    els.resultCard.classList.add("show");
+    els.resultCard.scrollIntoView({behavior:"smooth"});
+    addHistory({ prompt: prompt, videoUrl: vurl, aspect: aspect, seconds: seconds, model: model, createdAt: new Date().toISOString() });
+    toast("영상 생성 완료!");
+  }
+
+  function stopTimers() {
+    if (job.timerId) clearInterval(job.timerId);
+    if (job.tickId) clearInterval(job.tickId);
+    job.timerId = null; job.tickId = null;
+  }
+  function cancelJob(msg) {
+    stopTimers(); job.polling = false; showProgress(false);
+    toast(msg || "취소했습니다.");
+  }
+  els.cancelBtn.addEventListener("click", function(){ cancelJob(); });
+
+  els.dlBtn.addEventListener("click", function(){
+    if (job.videoUrl) downloadVideo(job.videoUrl, "ai-video.mp4");
+  });
+
+  async function downloadVideo(url, filename) {
+    try {
+      var res = await fetch(url);
+      if (!res.ok) throw new Error("HTTP " + res.status);
+      var blob = await res.blob();
+      var a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = filename || "ai-video.mp4";
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(function(){ URL.revokeObjectURL(a.href); }, 5000);
+      toast("다운로드를 시작했습니다.");
+    } catch(e) {
+      window.open(url, "_blank");
+      toast("직접 다운로드에 실패해 새 탭으로 열었습니다.");
+    }
+  }
+
+  /* 히스토리 */
+  function getHist() {
+    try { return JSON.parse(localStorage.getItem(LS_HIST) || "[]"); }
+    catch(e){ return []; }
+  }
+  function setHist(h) { try { localStorage.setItem(LS_HIST, JSON.stringify(h)); } catch(e){} }
+  function addHistory(item) {
+    var h = getHist(); h.unshift(item);
+    if (h.length > 30) h = h.slice(0, 30);
+    setHist(h); renderHist();
+  }
+  function renderHist() {
+    var h = getHist();
+    els.histList.innerHTML = "";
+    if (!h.length) {
+      els.histList.innerHTML = '<div id="emptyHist">아직 생성한 영상이 없습니다.</div>';
+      return;
+    }
+    h.forEach(function(item, idx){
+      var d = document.createElement("div");
+      d.className = "hist-item";
+      var date = "";
+      try { date = new Date(item.createdAt).toLocaleString("ko-KR"); } catch(e){}
+      var p = document.createElement("div"); p.className = "hp"; p.textContent = item.prompt;
+      var m = document.createElement("div"); m.className = "hm";
+      m.textContent = date + " · " + (item.aspect||"") + " · " + (item.seconds||"") + "초";
+      var a = document.createElement("div"); a.className = "ha";
+      var b1 = document.createElement("button"); b1.textContent = "▶ 보기";
+      b1.addEventListener("click", function(){
+        els.videoEl.src = item.videoUrl; job.videoUrl = item.videoUrl;
+        els.resultCard.classList.add("show");
+        els.resultCard.scrollIntoView({behavior:"smooth"});
+      });
+      var b2 = document.createElement("button"); b2.textContent = "⬇ 다운로드";
+      b2.addEventListener("click", function(){ downloadVideo(item.videoUrl, "ai-video.mp4"); });
+      var b3 = document.createElement("button"); b3.textContent = "삭제"; b3.className = "danger";
+      b3.addEventListener("click", function(){
+        var hh = getHist(); hh.splice(idx,1); setHist(hh); renderHist();
+      });
+      a.appendChild(b1); a.appendChild(b2); a.appendChild(b3);
+      d.appendChild(p); d.appendChild(m); d.appendChild(a);
+      els.histList.appendChild(d);
+    });
+  }
+
+  refreshKeyUI();
+  renderHist();
+}
+</script>
+</body>
+</html>
